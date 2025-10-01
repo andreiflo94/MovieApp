@@ -25,8 +25,12 @@ class HomeViewModel @Inject constructor(
 
     private fun refreshMovies() {
         viewModelScope.launch {
-            tabs.forEach { type ->
-                repository.refreshMovies(type)
+            try {
+                tabs.forEach { type ->
+                    repository.refreshMovies(type)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
