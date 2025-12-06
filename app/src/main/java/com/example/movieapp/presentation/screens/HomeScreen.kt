@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.movieapp.common.di.Constants
 import com.example.movieapp.presentation.common.MovieGrid
 import com.example.movieapp.presentation.common.UiState
 import com.example.movieapp.presentation.viewmodels.HomeViewModel
@@ -86,7 +87,7 @@ fun HomeScreen(
                     )
                 }
             ) {
-                HomeViewModel.tabs.forEachIndexed { index, title ->
+                Constants.tabUiNames.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },

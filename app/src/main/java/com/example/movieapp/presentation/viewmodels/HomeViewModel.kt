@@ -2,6 +2,7 @@ package com.example.movieapp.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.movieapp.common.di.Constants
 import com.example.movieapp.domain.models.Movie
 import com.example.movieapp.domain.repository.MovieRepository
 import com.example.movieapp.presentation.common.UiState
@@ -15,9 +16,6 @@ class HomeViewModel @Inject constructor(
     private val repository: MovieRepository
 ) : ViewModel() {
 
-    companion object {
-        val tabs = listOf("now_playing", "popular", "top_rated", "upcoming")
-    }
 
     init {
         refreshMovies()
@@ -26,7 +24,7 @@ class HomeViewModel @Inject constructor(
     private fun refreshMovies() {
         viewModelScope.launch {
             try {
-                tabs.forEach { type ->
+                Constants.tabServerKeys.forEach { type ->
                     repository.refreshMovies(type)
                 }
             } catch (e: Exception) {
@@ -36,7 +34,7 @@ class HomeViewModel @Inject constructor(
     }
 
     val nowPlayingState: StateFlow<UiState<List<Movie>>> =
-        repository.getMoviesByType(tabs[0])
+        repository.getMoviesByType(Constants.tabServerKeys[0])
             .map { UiState.Success(it) as UiState<List<Movie>> }
             .catch { e -> emit(UiState.Error(e.message ?: "Unknown error")) }
             .stateIn(
@@ -46,7 +44,7 @@ class HomeViewModel @Inject constructor(
             )
 
     val popularState: StateFlow<UiState<List<Movie>>> =
-        repository.getMoviesByType(tabs[1])
+        repository.getMoviesByType(Constants.tabServerKeys[1])
             .map { UiState.Success(it) as UiState<List<Movie>> }
             .catch { e -> emit(UiState.Error(e.message ?: "Unknown error")) }
             .stateIn(
@@ -56,7 +54,7 @@ class HomeViewModel @Inject constructor(
             )
 
     val topRatedState: StateFlow<UiState<List<Movie>>> =
-        repository.getMoviesByType(tabs[2])
+        repository.getMoviesByType(Constants.tabServerKeys[2])
             .map { UiState.Success(it) as UiState<List<Movie>> }
             .catch { e -> emit(UiState.Error(e.message ?: "Unknown error")) }
             .stateIn(
@@ -66,7 +64,7 @@ class HomeViewModel @Inject constructor(
             )
 
     val upcomingState: StateFlow<UiState<List<Movie>>> =
-        repository.getMoviesByType(tabs[3])
+        repository.getMoviesByType(Constants.tabServerKeys[3])
             .map { UiState.Success(it) as UiState<List<Movie>> }
             .catch { e -> emit(UiState.Error(e.message ?: "Unknown error")) }
             .stateIn(
