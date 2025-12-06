@@ -28,10 +28,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build APK
-        env:
-          API_KEY: ${{ secrets.API_KEY }}
-        run: ./gradlew assembleDebug
-
+        run: ./gradlew assembleDebug -PAPI_KEY=${{ secrets.API_KEY }}
 
         run: ./gradlew assembleDebug
 
