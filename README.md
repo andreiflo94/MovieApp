@@ -5,6 +5,9 @@ The app fetches movies from **The Movie Database (TMDB)** API and stores them lo
 
 ---
 
+
+➡️ [Download MovieApp APK](https://github.com/andreiflo94/MovieApp/raw/master/builds/app-debug.apk)
+
 ## 🧭 Features
 
 - **🏠 Home**  
