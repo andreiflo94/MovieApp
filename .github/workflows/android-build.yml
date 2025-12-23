@@ -30,8 +30,6 @@ jobs:
       - name: Build APK
         run: ./gradlew assembleDebug -PAPI_KEY=${{ secrets.API_KEY }}
 
-        run: ./gradlew assembleDebug
-
       - name: Copy APK to builds folder
         run: |
           mkdir -p builds
