@@ -1,5 +1,8 @@
 package com.example.movieapp.presentation.screens
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -44,18 +47,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.movieapp.domain.models.MovieDetails
 import com.example.movieapp.presentation.common.UiState
 import com.example.movieapp.presentation.viewmodels.MovieDetailsViewModel
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MovieDetailsScreen(
     viewModel: MovieDetailsViewModel,
     movieId: Int,
-    onBack: () -> Unit
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onBack: () -> Unit,
 ) {
     LaunchedEffect(movieId) {
         viewModel.fetchMovieDetails(movieId)
@@ -70,17 +75,23 @@ fun MovieDetailsScreen(
                 .padding(paddingValues)
         ) {
             when (state) {
-                is UiState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                is UiState.Loading -> CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
+
                 is UiState.Error -> Text(
                     text = (state as UiState.Error).message,
                     modifier = Modifier.align(Alignment.Center)
                 )
 
                 is UiState.Success -> MovieDetailsContent(
-                    (state as UiState.Success<MovieDetails>).data,
-                    onBack,
-                    updateFavourite = { movieId, isFavourite ->
-                        viewModel.updateFavourite(movieId, isFavourite)
+                    movie = (state as UiState.Success<MovieDetails>).data,
+                    movieId = movieId,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    onBack = onBack,
+                    updateFavourite = { id, isFavourite ->
+                        viewModel.updateFavourite(id, isFavourite)
                     }
                 )
             }
@@ -88,9 +99,13 @@ fun MovieDetailsScreen(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun MovieDetailsContent(
     movie: MovieDetails,
+    movieId: Int,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     updateFavourite: (Int, Boolean) -> Unit = { _, _ -> },
 ) {
@@ -107,10 +122,17 @@ private fun MovieDetailsContent(
             color = MaterialTheme.colorScheme.surface
         ) {
             Column {
-                MovieDetailsPosterSection(movie, isFavourite) {
-                    updateFavourite(movie.id, !isFavourite)
-                    isFavourite = !isFavourite
-                }
+                MovieDetailsPosterSection(
+                    movie = movie,
+                    movieId = movieId,
+                    isFavourite = isFavourite,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    onToggleFavourite = {
+                        updateFavourite(movie.id, !isFavourite)
+                        isFavourite = !isFavourite
+                    }
+                )
                 MovieDetailsOverview(movie)
             }
         }
@@ -146,17 +168,30 @@ private fun MovieDetailsHeader(movie: MovieDetails, onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun MovieDetailsPosterSection(
     movie: MovieDetails,
+    movieId: Int,
     isFavourite: Boolean,
-    onToggleFavourite: () -> Unit
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onToggleFavourite: () -> Unit,
 ) {
     Row(modifier = Modifier.padding(top = 16.dp)) {
+        // The key "movie_poster_<id>" matches the one in MovieGridItem,
+        // telling Compose to animate this image from its grid position.
+        val posterModifier = with(sharedTransitionScope) {
+            Modifier.sharedElement(
+                state = rememberSharedContentState(key = "movie_poster_$movieId"),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+
         Image(
             painter = rememberAsyncImagePainter(movie.posterPath),
             contentDescription = movie.title,
-            modifier = Modifier
+            modifier = posterModifier
                 .padding(start = 16.dp)
                 .width(120.dp)
                 .height(170.dp)
@@ -186,7 +221,8 @@ private fun MovieDetailsPosterSection(
                 }
                 IconButton(onClick = onToggleFavourite) {
                     Icon(
-                        imageVector = if (isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        imageVector = if (isFavourite) Icons.Default.Favorite
+                        else Icons.Default.FavoriteBorder,
                         contentDescription = "Favorite",
                         tint = if (isFavourite) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurface
@@ -195,20 +231,16 @@ private fun MovieDetailsPosterSection(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-
             MovieDetailsStats(movie)
-
             Spacer(modifier = Modifier.height(4.dp))
-
             MovieDetailsGenres(movie)
         }
     }
 }
 
-
 @Composable
 private fun MovieDetailsStats(movie: MovieDetails) {
-    Column(modifier = Modifier.padding(start = 0.dp, top = 8.dp, end = 0.dp)) {
+    Column(modifier = Modifier.padding(top = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = String.format("%.1f ★", movie.voteAverage),
@@ -229,7 +261,7 @@ private fun MovieDetailsGenres(movie: MovieDetails) {
         FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 0.dp, top = 4.dp, end = 0.dp),
+                .padding(top = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             movie.genres.split(",").forEach { genre ->
@@ -249,75 +281,10 @@ private fun MovieDetailsOverview(movie: MovieDetails) {
         ) {
             Text(
                 text = "Overview",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold
-                )
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = movie.overview, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
-
-// region previews
-
-private val sampleMovieDetails = MovieDetails(
-    id = 1,
-    title = "The Shawshank Redemption",
-    tagline = "Fear can hold you prisoner. Hope can set you free.",
-    overview = "Framed in the 1940s for double murder, upstanding banker Andy Dufresne begins a new life at Shawshank prison.",
-    posterPath = "https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg",
-    backdropPath = "https://image.tmdb.org/t/p/w500/xBKGJQsAIeweesB79KC89FpBrVr.jpg",
-    voteAverage = 9.3,
-    voteCount = 25000,
-    releaseDate = "1994-09-23",
-    genres = "Drama, Crime",
-    isFavourite = false
-)
-
-
-@Preview(showBackground = true)
-@Composable
-private fun MovieDetailsScreenPreview() {
-    MovieDetailsContent(
-        movie = sampleMovieDetails,
-        onBack = {},
-        updateFavourite = { _, _ -> }
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun MovieDetailsHeaderPreview() {
-    MovieDetailsHeader(movie = sampleMovieDetails, onBack = {})
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun MovieDetailsPosterSectionPreview() {
-    MovieDetailsPosterSection(
-        movie = sampleMovieDetails,
-        isFavourite = false,
-        onToggleFavourite = {}
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun MovieDetailsStatsPreview() {
-    MovieDetailsStats(movie = sampleMovieDetails)
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun MovieDetailsGenresPreview() {
-    MovieDetailsGenres(movie = sampleMovieDetails)
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun MovieDetailsOverviewPreview() {
-    MovieDetailsOverview(movie = sampleMovieDetails)
-}
-
-// endregion

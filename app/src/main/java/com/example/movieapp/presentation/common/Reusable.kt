@@ -1,5 +1,8 @@
 package com.example.movieapp.presentation.common
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -25,19 +28,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewParameter
-import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.movieapp.domain.models.Movie
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun MovieGrid(
     movies: List<Movie>,
     onMovieClick: (Int) -> Unit,
-    onFavouriteClick: (Int, Boolean) -> Unit
+    onFavouriteClick: (Int, Boolean) -> Unit,
+    // Optional — only provided when navigating from screens that support
+    // shared element transitions (e.g. Home). Favourites/Search still work
+    // without them; they just won't animate.
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -50,32 +55,54 @@ fun MovieGrid(
     ) {
         items(movies, key = { it.id }) { movie ->
             MovieGridItem(
-                movie = movie, onClick = { onMovieClick(movie.id) },
-                onFavouriteClick = onFavouriteClick
+                movie = movie,
+                onClick = { onMovieClick(movie.id) },
+                onFavouriteClick = onFavouriteClick,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
             )
         }
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MovieGridItem(
     movie: Movie,
     onClick: () -> Unit,
-    onFavouriteClick: (Int, Boolean) -> Unit = { _, _ -> }
+    onFavouriteClick: (Int, Boolean) -> Unit = { _, _ -> },
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
     ) {
+        // Build the shared-element modifier when both scopes are present.
+        // The key matches the one used in MovieDetailsScreen so Compose can
+        // connect the two instances and animate between them.
+        val posterModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+            with(sharedTransitionScope) {
+                Modifier.sharedElement(
+                    state = rememberSharedContentState(key = "movie_poster_${movie.id}"),
+                    animatedVisibilityScope = animatedVisibilityScope,
+                )
+            }
+        } else {
+            Modifier
+        }
+
         Image(
             painter = rememberAsyncImagePainter(movie.posterUrl),
             contentDescription = movie.title,
-            modifier = Modifier
+            modifier = posterModifier
                 .height(220.dp)
                 .fillMaxWidth()
         )
+
         Spacer(modifier = Modifier.height(6.dp))
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -84,86 +111,20 @@ fun MovieGridItem(
                 text = movie.releaseYear,
                 modifier = Modifier.padding(end = 8.dp)
             )
-
             Text(
                 text = "${movie.averageRating} ★",
                 modifier = Modifier.padding(end = 8.dp)
             )
-
             Spacer(modifier = Modifier.weight(1f))
-
             IconButton(onClick = { onFavouriteClick(movie.id, !movie.isFavourite) }) {
                 Icon(
-                    imageVector = if (movie.isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (movie.isFavourite) "Remove from favourites" else "Add to favourites",
+                    imageVector = if (movie.isFavourite) Icons.Default.Favorite
+                    else Icons.Default.FavoriteBorder,
+                    contentDescription = if (movie.isFavourite) "Remove from favourites"
+                    else "Add to favourites",
                     tint = if (movie.isFavourite) Color.Red else Color.Gray
                 )
             }
         }
     }
 }
-
-// region previews
-
-class SampleMovieProvider : PreviewParameterProvider<Movie> {
-    override val values = sequenceOf(
-        Movie(
-            id = 1,
-            title = "Inception",
-            posterUrl = "https://image.tmdb.org/t/p/w500/qmDpIHrmpJINaRKAfWQfftjCdyi.jpg",
-            releaseYear = "2010",
-            averageRating = 8.8,
-            isFavourite = false
-        ),
-        Movie(
-            id = 2,
-            title = "The Dark Knight",
-            posterUrl = "https://image.tmdb.org/t/p/w500/1hRoyzDtpgMU7Dz4JF22RANzQO7.jpg",
-            releaseYear = "2008",
-            averageRating = 9.0,
-            isFavourite = true
-        )
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun MovieGridItemPreview(
-    @PreviewParameter(SampleMovieProvider::class) movie: Movie
-) {
-    MovieGridItem(
-        movie = movie,
-        onClick = {},
-        onFavouriteClick = { _, _ -> }
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun MovieGridPreview() {
-    val movies = listOf(
-        Movie(
-            id = 1,
-            title = "Inception",
-            posterUrl = "https://image.tmdb.org/t/p/w500/qmDpIHrmpJINaRKAfWQfftjCdyi.jpg",
-            releaseYear = "2010",
-            averageRating = 8.8,
-            isFavourite = false
-        ),
-        Movie(
-            id = 2,
-            title = "The Dark Knight",
-            posterUrl = "https://image.tmdb.org/t/p/w500/1hRoyzDtpgMU7Dz4JF22RANzQO7.jpg",
-            releaseYear = "2008",
-            averageRating = 9.0,
-            isFavourite = true
-        )
-    )
-    MovieGrid(
-        movies = movies,
-        onMovieClick = {},
-        onFavouriteClick = { _, _ -> }
-    )
-}
-
-// endregion

@@ -1,5 +1,6 @@
 package com.example.movieapp.presentation.screens
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +18,7 @@ import com.example.movieapp.presentation.common.UiState
 import com.example.movieapp.presentation.common.MovieGrid
 import com.example.movieapp.presentation.viewmodels.FavouritesViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun FavouritesScreen(
     viewModel: FavouritesViewModel,

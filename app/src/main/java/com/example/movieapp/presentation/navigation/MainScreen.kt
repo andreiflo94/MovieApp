@@ -1,5 +1,7 @@
 package com.example.movieapp.presentation.navigation
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
@@ -31,6 +33,7 @@ import com.example.movieapp.presentation.viewmodels.HomeViewModel
 import com.example.movieapp.presentation.viewmodels.MovieDetailsViewModel
 import com.example.movieapp.presentation.viewmodels.SearchViewModel
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
@@ -75,37 +78,47 @@ fun MainScreen() {
             }
         }
     ) { _ ->
-        NavHost(
-            navController = navController,
-            startDestination = "home"
-        ) {
-            composable(Screen.Home) {
-                HomeScreen(viewModel = homeViewModel) { movieId ->
-                    navController.navigate(Screen.detailsRoute(movieId))
+        // SharedTransitionLayout must wrap the NavHost so both source and
+        // destination composables share the same transition scope.
+        SharedTransitionLayout {
+            NavHost(
+                navController = navController,
+                startDestination = "home"
+            ) {
+                composable(Screen.Home) {
+                    HomeScreen(
+                        viewModel = homeViewModel,
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        animatedVisibilityScope = this,
+                        onMovieClick = { movieId ->
+                            navController.navigate(Screen.detailsRoute(movieId))
+                        }
+                    )
                 }
-            }
-            composable(Screen.Favorites) {
-                FavouritesScreen(viewModel = favouritesViewModel) { movieId ->
-                    navController.navigate(Screen.detailsRoute(movieId))
-                }
-            }
-            composable(Screen.Search) {
-                SearchScreen(viewModel = searchViewModel) { movieId ->
-                    navController.navigate(Screen.detailsRoute(movieId))
-                }
-            }
-            composable(
-                route = Screen.Details,
-                arguments = listOf(navArgument("movieId") { type = NavType.IntType })
-            ) { backStackEntry ->
-                val movieId = backStackEntry.arguments?.getInt("movieId") ?: return@composable
-                MovieDetailsScreen(
-                    viewModel = movieDetailsViewModel,
-                    movieId = movieId,
-                    onBack = {
-                        navController.popBackStack()
+                composable(Screen.Favorites) {
+                    FavouritesScreen(viewModel = favouritesViewModel) { movieId ->
+                        navController.navigate(Screen.detailsRoute(movieId))
                     }
-                )
+                }
+                composable(Screen.Search) {
+                    SearchScreen(viewModel = searchViewModel) { movieId ->
+                        navController.navigate(Screen.detailsRoute(movieId))
+                    }
+                }
+                composable(
+                    route = Screen.Details,
+                    arguments = listOf(navArgument("movieId") { type = NavType.IntType })
+                ) { backStackEntry ->
+                    val movieId =
+                        backStackEntry.arguments?.getInt("movieId") ?: return@composable
+                    MovieDetailsScreen(
+                        viewModel = movieDetailsViewModel,
+                        movieId = movieId,
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        animatedVisibilityScope = this,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
         }
     }
@@ -115,25 +128,17 @@ fun MainScreen() {
             0 -> navController.navigate(Screen.Home) {
                 launchSingleTop = true
                 restoreState = true
-                popUpTo(navController.graph.startDestinationId) {
-                    saveState = true
-                }
+                popUpTo(navController.graph.startDestinationId) { saveState = true }
             }
-
             1 -> navController.navigate(Screen.Favorites) {
                 launchSingleTop = true
                 restoreState = true
-                popUpTo(navController.graph.startDestinationId) {
-                    saveState = true
-                }
+                popUpTo(navController.graph.startDestinationId) { saveState = true }
             }
-
             2 -> navController.navigate(Screen.Search) {
                 launchSingleTop = true
                 restoreState = true
-                popUpTo(navController.graph.startDestinationId) {
-                    saveState = true
-                }
+                popUpTo(navController.graph.startDestinationId) { saveState = true }
             }
         }
     }

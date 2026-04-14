@@ -1,6 +1,8 @@
 package com.example.movieapp.presentation.screens
 
-
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,15 +35,15 @@ import com.example.movieapp.presentation.common.MovieGrid
 import com.example.movieapp.presentation.common.UiState
 import com.example.movieapp.presentation.viewmodels.HomeViewModel
 
-
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onMovieClick: (Int) -> Unit
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onMovieClick: (Int) -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(0) }
-
 
     val nowPlaying by viewModel.nowPlayingState.collectAsState()
     val popular by viewModel.popularState.collectAsState()
@@ -58,9 +60,7 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Home") }
-            )
+            TopAppBar(title = { Text("Home") })
         }
     ) { padding ->
         Column(
@@ -81,8 +81,7 @@ fun HomeScreen(
                 containerColor = MaterialTheme.colorScheme.background,
                 indicator = { tabPositions ->
                     TabRowDefaults.Indicator(
-                        modifier = Modifier
-                            .tabIndicatorOffset(tabPositions[selectedTab]),
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -94,7 +93,9 @@ fun HomeScreen(
                         text = {
                             Text(
                                 text = title.uppercase(),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold
+                                )
                             )
                         }
                     )
@@ -127,15 +128,15 @@ fun HomeScreen(
                         movies = moviesForSelectedTab.data,
                         onMovieClick = onMovieClick,
                         onFavouriteClick = { movieId, isFavourite ->
-                            viewModel.updateFavourite(
-                                movieId,
-                                isFavourite
-                            )
-                        }
+                            viewModel.updateFavourite(movieId, isFavourite)
+                        },
+                        // Thread the scopes down so MovieGridItem can attach
+                        // the sharedElement modifier to each poster.
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
                     )
                 }
             }
         }
     }
 }
-
